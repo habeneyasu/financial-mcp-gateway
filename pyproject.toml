@@ -1,0 +1,29 @@
+[project]
+name = "financial-mcp-gateway"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "habeneyasu", email = "habeneyasu@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.141.1",
+    "google-genai>=2.19.0",
+    "gradio>=5.0.0",
+    "mcp-types>=2.0.0",
+    "mcp[cli]>=2.0.0",
+    "python-dotenv>=1.2.2",
+    "uvicorn>=0.35.0",
+]
+
+[project.scripts]
+financial-mcp-gateway = "financial_mcp_gateway:main"
+
+[build-system]
+requires = ["uv_build>=0.12.4,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"

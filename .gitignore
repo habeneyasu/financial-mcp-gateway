@@ -1,0 +1,10 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+dist/
+.python-version
+data/
+*.db
+*.db-wal
+*.db-shm
