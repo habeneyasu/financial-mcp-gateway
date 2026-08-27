@@ -1,0 +1,52 @@
+services:
+  mcp:
+    build: .
+    image: financial-mcp-gateway:local
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      DATABASE_PATH: /app/data/gateway.db
+    volumes:
+      - gateway-data:/app/data
+    command: ["python", "server.py"]
+    restart: unless-stopped
+
+  chat:
+    image: financial-mcp-gateway:local
+    ports:
+      - "${CHAT_PORT:-8001}:8001"
+    env_file: .env
+    environment:
+      MCP_URL: http://mcp:8000/mcp
+      CHAT_PORT: "8001"
+    depends_on:
+      - mcp
+    command: ["python", "chat_app.py"]
+    restart: unless-stopped
+
+  rest:
+    image: financial-mcp-gateway:local
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      DATABASE_PATH: /app/data/gateway.db
+    volumes:
+      - gateway-data:/app/data
+    depends_on:
+      - mcp
+    command:
+      [
+        "uvicorn",
+        "financial_mcp_gateway.api.router:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+      ]
+    restart: unless-stopped
+
+volumes:
+  gateway-data:
