@@ -1,3 +1,22 @@
+---
+title: Financial MCP Gateway
+emoji: 🏦
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: "6.25.0"
+app_file: space_app.py
+python_version: "3.12"
+pinned: false
+short_description: Read-only financial agent demo — MCP 2026-07-28 + Gemini
+tags:
+  - mcp
+  - gradio
+  - finance
+  - agent
+  - gemini
+---
+
 # Financial MCP Gateway
 
 > Give AI agents financial capabilities without giving them the keys to the system.
