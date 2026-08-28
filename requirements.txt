@@ -1,9 +1,0 @@
-# Hugging Face Spaces — let pip resolve transitive deps freely.
-# Only pin direct dependencies that aren't already in the HF base image.
-
-fastapi==0.141.1
-google-genai==2.19.0
-mcp==2.0.0
-mcp-types==2.0.0
-python-dotenv==1.2.2
-sse-starlette==3.4.8

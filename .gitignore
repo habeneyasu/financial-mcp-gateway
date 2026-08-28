@@ -30,3 +30,11 @@ data/
 # Logs and OS
 *.log
 .DS_Store
+
+# Markdown — only README.md and AGENTS.md are tracked
+docs/*.md
+MCP_SECURITY.md
+
+# Local tooling
+mcp_guard.py
+requirements.txt
