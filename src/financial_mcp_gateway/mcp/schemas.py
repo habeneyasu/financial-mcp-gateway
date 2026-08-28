@@ -57,10 +57,16 @@ class AccountTransactionsOutput(BaseModel):
     transactions: list[TransactionSummary]
 
 
+class SystemTransactionSummaryOutput(BaseModel):
+    transaction_count: int
+    by_status: dict[str, int]
+
+
 __all__ = [
     "AccountBalanceOutput",
     "AccountResponse",
     "AccountTransactionsOutput",
+    "SystemTransactionSummaryOutput",
     "CustomerResponse",
     "IdempotencyKeyResponse",
     "TransactionResponse",

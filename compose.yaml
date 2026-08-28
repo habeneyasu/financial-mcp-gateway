@@ -1,7 +1,11 @@
+x-app: &app
+  build: .
+  image: financial-mcp-gateway:local
+  pull_policy: never
+
 services:
   mcp:
-    build: .
-    image: financial-mcp-gateway:local
+    <<: *app
     ports:
       - "${PORT:-8000}:8000"
     env_file: .env
@@ -14,7 +18,7 @@ services:
     restart: unless-stopped
 
   chat:
-    image: financial-mcp-gateway:local
+    <<: *app
     ports:
       - "${CHAT_PORT:-8001}:8001"
     env_file: .env
@@ -27,7 +31,7 @@ services:
     restart: unless-stopped
 
   rest:
-    image: financial-mcp-gateway:local
+    <<: *app
     ports:
       - "8080:8080"
     env_file: .env

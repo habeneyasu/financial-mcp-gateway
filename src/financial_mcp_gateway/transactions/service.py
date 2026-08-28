@@ -7,10 +7,12 @@ from decimal import Decimal
 
 from db import get_account, get_transaction_by_reference, insert_transaction
 from db import list_transactions as db_list_transactions
+from db import transaction_stats as db_transaction_stats
 from financial_mcp_gateway.transactions.schema import (
     TransactionCreate,
     TransactionListResponse,
     TransactionResponse,
+    TransactionSummaryResponse,
 )
 
 
@@ -125,3 +127,10 @@ class TransactionService:
         if get_account(account_id) is None:
             raise TransactionAccountNotFound(account_id)
         return db_list_transactions(account_id, limit)
+
+    def get_transaction_summary(self) -> TransactionSummaryResponse:
+        stats = db_transaction_stats()
+        return TransactionSummaryResponse(
+            transaction_count=stats["total"],
+            by_status=stats["by_status"],
+        )

@@ -6,11 +6,10 @@ __pycache__
 *.pyc
 *.pyo
 .python-version
-README.md
 docker-compose.yml
-compose.yaml
 Dockerfile
 .cursor
-*.md
+AGENTS.md
+MCP_SECURITY.md
 data
 *.db

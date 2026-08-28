@@ -92,3 +92,8 @@ class TransactionListResponse(BaseModel):
     total: int
     returned: int
     transactions: list[TransactionResponse]
+
+
+class TransactionSummaryResponse(BaseModel):
+    transaction_count: int
+    by_status: dict[str, int]

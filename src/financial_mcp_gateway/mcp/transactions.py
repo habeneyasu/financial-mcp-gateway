@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from financial_mcp_gateway.mcp.helpers import format_amount, run_tool
 from financial_mcp_gateway.mcp.schemas import (
     AccountTransactionsOutput,
+    SystemTransactionSummaryOutput,
     TransactionAccountRef,
     TransactionSummary,
 )
@@ -67,6 +68,21 @@ def register_transaction_tools(mcp: MCPServer) -> None:
             _run,
             not_found=(TransactionAccountNotFound, "account_not_found"),
         )
+
+    @mcp.tool(
+        title="Get transaction summary",
+        description="Return the total number of transactions in the gateway and counts by status.",
+        structured_output=True,
+    )
+    async def get_transaction_summary() -> SystemTransactionSummaryOutput:
+        def _run() -> SystemTransactionSummaryOutput:
+            summary = service.get_transaction_summary()
+            return SystemTransactionSummaryOutput(
+                transaction_count=summary.transaction_count,
+                by_status=summary.by_status,
+            )
+
+        return run_tool(_run)
 
     @mcp.tool(
         title="Get transaction",
