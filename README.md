@@ -22,13 +22,25 @@ The same domain services power MCP, REST, and chat. Only the agent path routes t
 
 ## Flow
 
+Chat path (default model: **`gemini-2.5-flash`**, configurable via `GEMINI_MODEL`):
+
 ```text
-User → Gemini → MCP Client → MCP Server → Tools → Domain Services → SQLite
+User
+  → Input guardrails (Pydantic + policy checks)
+  → Agent orchestration
+  → Gemini API (tool selection / reply)
+  → MCP Client (tools/list → tools/call)
+  → MCP Server → Tools → Domain Services → SQLite
+  → tool results → Gemini
+  → Output guardrails
+  → User
 ```
 
-Gemini **selects** tools based on the user request. The **MCP client invokes** them (`tools/list`, then `tools/call`). Gemini never imports domain code or queries SQLite.
+Gemini **selects** tools; the **MCP client invokes** them. Gemini never imports domain code or queries SQLite.
 
-On the server: `initialize` → `tools/list` → `tools/call`.
+On the MCP server: `initialize` → `tools/list` → `tools/call`.
+
+Direct MCP clients skip Gemini and call the server themselves.
 
 ---
 
@@ -40,28 +52,38 @@ Three interfaces, one shared domain:
 |-----------|------|
 | **MCP** | Agents and MCP clients — `http://127.0.0.1:8000/mcp` |
 | **REST** | Traditional integrations, same domain services — port 8080 (optional) |
-| **Gemini Chat** | Natural language; Gemini selects tools, MCP client invokes them on the same server — `http://127.0.0.1:8001/` |
+| **Gemini Chat** | Gradio + `/chat`; **Gemini** (`gemini-2.5-flash`) selects tools, **MCP client** invokes them — `http://127.0.0.1:8001/` |
 
 ```mermaid
 flowchart LR
     User["User"]
-    subgraph Chat["Gemini Chat"]
-        Gemini["Gemini"]
+
+    subgraph Chat["Gemini Chat · gemini-2.5-flash"]
+        InG["Input guardrails"]
         Agent["Agent loop"]
-        Client["MCP Client"]
+        LLM["Gemini API"]
+        MCPc["MCP Client"]
+        OutG["Output guardrails"]
     end
+
     subgraph Gateway["MCP Gateway · 2026-07-28"]
         Server["MCP Server"]
         Tools["Financial Tools"]
     end
+
     subgraph Domain["Shared Financial Domain"]
         Services["Domain Services"]
         DB[("SQLite")]
     end
+
     REST["REST API"]
     External["Other MCP Clients"]
 
-    User --> Gemini --> Agent --> Client --> Server
+    User --> InG --> Agent --> LLM
+    LLM --> MCPc --> Server
+    MCPc --> LLM
+    LLM --> Agent
+    Agent --> OutG --> User
     External --> Server
     Server --> Tools --> Services
     REST --> Services
@@ -79,17 +101,34 @@ All tools are **read-only** (no transfers, payments, or withdrawals).
 | `get_customer` | Get a customer |
 | `get_account` | Get account information |
 | `get_account_balance` | Get account balance and summary |
-| `get_transactions` | Get recent transactions |
+| `get_transactions` | Get recent transactions for an account |
+| `get_transaction_summary` | Get total transaction count and counts by status |
 | `get_transaction` | Get a transaction |
 | `get_user` | Get a user |
 | `list_users` | List users |
-| `get_idempotency_key` | Get an idempotency key |
 
 ---
 
 ## Guardrails
 
-Chat path: Pydantic validation → application guardrails → Gemini → MCP tool → output validation. Bounded by `AGENT_MAX_TOOL_ROUNDS` (default 8).
+Enforced in code (`agent/schema.py`) and guided in the system prompt (`agent/prompts.py`). **Prompts are not a security boundary on their own.**
+
+### Input
+
+- Pydantic validation on `POST /chat`: message length ≤ 4,000 chars; history capped at 50 turns
+- Blocks prompt-injection patterns (instruction override, credential exfiltration requests)
+- Empty or invalid input returns `status: "blocked"` without calling Gemini
+
+### Output
+
+- Normalizes Gemini replies into `ChatResponse`
+- Truncates replies over 4,000 chars
+- Fallback message when the model returns empty text
+
+### Agent loop
+
+- `AGENT_MAX_TOOL_ROUNDS` (default **8**) caps tool-selection rounds per request
+- Read-only scope and “no guessing” behavior in the system prompt — financial facts must come from MCP tool results
 
 ---
 

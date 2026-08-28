@@ -9,6 +9,7 @@ import secrets
 import sqlite3
 from collections import defaultdict
 from pathlib import Path
+from typing import TypedDict
 
 from config import config
 
@@ -357,8 +358,11 @@ def init_db() -> None:
         if _needs_rebuild(conn):
             _drop_all(conn)
         conn.executescript(SCHEMA)
+        # Serialize startup when MCP and REST share one SQLite file (e.g. Docker Compose).
+        conn.execute("BEGIN IMMEDIATE")
         if conn.execute("SELECT COUNT(*) FROM customers").fetchone()[0] == 0:
             _seed(conn)
+        conn.commit()
         logger.info("database records: %s", record_counts(conn))
 
 
@@ -736,3 +740,20 @@ def list_transactions(
                 (limit,),
             ).fetchall()
     return total, [dict(row) for row in rows]
+
+
+class TransactionStats(TypedDict):
+    total: int
+    by_status: dict[str, int]
+
+
+def transaction_stats() -> TransactionStats:
+    with _connect() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
+        by_status = {
+            row["status"]: row["count"]
+            for row in conn.execute(
+                "SELECT status, COUNT(*) AS count FROM transactions GROUP BY status"
+            ).fetchall()
+        }
+    return {"total": total, "by_status": by_status}

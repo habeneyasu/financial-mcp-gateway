@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-install-project --no-dev --no-editable
 
-COPY pyproject.toml uv.lock server.py chat_app.py client.py config.py db.py main.py ./
+COPY pyproject.toml uv.lock README.md server.py chat_app.py client.py config.py db.py main.py ./
 COPY src ./src
 
 RUN --mount=type=cache,target=/root/.cache/uv \

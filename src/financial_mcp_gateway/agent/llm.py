@@ -178,6 +178,20 @@ def _to_gemini_contents(messages: list[dict[str, Any]]) -> tuple[str | None, lis
     return system_instruction, contents
 
 
+def _response_text(response: Any) -> str | None:
+    """Extract assistant text without using response.text (avoids SDK warnings on tool calls)."""
+    parts = response.parts or []
+    chunks: list[str] = []
+    for part in parts:
+        if not isinstance(part.text, str):
+            continue
+        if isinstance(part.thought, bool) and part.thought:
+            continue
+        chunks.append(part.text)
+    text = "".join(chunks).strip()
+    return text or None
+
+
 def _to_completion(response: Any) -> Completion:
     tool_calls: list[ToolCallPart] = []
     for call in response.function_calls or []:
@@ -188,7 +202,7 @@ def _to_completion(response: Any) -> Completion:
             )
         )
 
-    text = (response.text or "").strip() or None
+    text = _response_text(response)
     return Completion(
         choices=[
             CompletionChoice(

@@ -1,10 +1,32 @@
-.venv/
+# Environment and secrets
 .env
-__pycache__/
-*.pyc
-dist/
+.venv/
 .python-version
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Type checkers and linters
+.mypy_cache/
+.ruff_cache/
+
+# Local database and runtime data
 data/
 *.db
 *.db-wal
 *.db-shm
+
+# Logs and OS
+*.log
+.DS_Store
