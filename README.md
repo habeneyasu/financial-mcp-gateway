@@ -6,6 +6,14 @@ Read-only reference implementation of the [MCP 2026-07-28 specification](https:/
 
 ---
 
+## Demo
+
+![Chat UI showing recent transactions for acc-1](assets/Show_transactions_image.png)
+
+*The Gradio chat UI querying recent transactions via the MCP gateway. Answers are grounded in MCP tool results — the agent never accesses the database directly.*
+
+---
+
 ## Architecture
 
 ```text

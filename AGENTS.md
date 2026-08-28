@@ -1,227 +1,170 @@
 # AGENTS.md
 
-Rules for AI coding agents working on **Financial MCP Gateway**.
+Guidelines for AI coding agents contributing to the **Financial MCP Gateway** — a reference implementation built for the [AAIF Ambassadors MCP Education Campaign](https://github.com/habeneyasu/financial-mcp-gateway).
 
-For setup and architecture, see [README.md](./README.md).  
-For security rules, see [MCP_SECURITY.md](./MCP_SECURITY.md).
+For project setup and architecture, see [README.md](./README.md).
 
 ---
 
-## Invariant
+## Purpose of This File
+
+This file instructs AI coding agents on the architectural rules, boundaries, and contribution standards for this repository. It operates at development time — complementing the runtime capability boundary enforced by MCP itself.
+
+The combination is intentional:
+
+- **MCP** enforces what the agent can access at runtime.
+- **AGENTS.md** enforces how the codebase should be structured during development.
+
+---
+
+## Core Invariant
 
 > **Financial data reaches the agent only through MCP tools — never through domain services, `db.py`, SQLite, or financial REST calls from `agent/`.**
 
-The intended path is:
+This boundary is not a suggestion. It is the central architectural principle of this project and must be preserved in all contributions.
+
+The required path is:
 
 ```text
 Agent
+  ↓  (tool selection)
+MCP Client          client.py
+  ↓  (HTTP POST /mcp)
+MCP Server          server.py
   ↓
-MCP Client
+MCP Tool            mcp/
   ↓
-MCP Server
+Domain Service      accounts/, customers/, …
   ↓
-MCP Tool
-  ↓
-Domain Service
-  ↓
-Database
+Database            SQLite
 ```
 
-Gemini **selects** tools. `client.py` **invokes** them through MCP:
-
-```text
-tools/list → tools/call
-```
-
-Do not introduce a path that allows the agent to bypass MCP.
+Gemini **selects** tools. `client.py` **invokes** them. Neither accesses domain services or the database directly.
 
 ---
 
-## Layers
+## Codebase Layers
 
 | Path | Responsibility |
 |---|---|
-| `src/financial_mcp_gateway/agent/` | Agent orchestration, Gemini integration, prompts, guardrails |
-| `src/financial_mcp_gateway/mcp/` | MCP tool definitions and handlers |
+| `src/financial_mcp_gateway/agent/` | Agent orchestration, Gemini integration, prompts, input/output guardrails |
+| `src/financial_mcp_gateway/mcp/` | MCP tool definitions — thin handlers that delegate to domain services |
 | `src/financial_mcp_gateway/accounts/` | Account domain logic |
 | `src/financial_mcp_gateway/customers/` | Customer domain logic |
 | `src/financial_mcp_gateway/transactions/` | Transaction domain logic |
 | `src/financial_mcp_gateway/users/` | User domain logic |
 | `src/financial_mcp_gateway/idempotency/` | Idempotency domain logic |
-| `src/financial_mcp_gateway/api/` | REST API; separate from the agent path |
-| `client.py` | MCP client using Streamable HTTP |
-| `mcp_guard.py` | Static MCP boundary and security checks |
+| `src/financial_mcp_gateway/api/` | REST API — parallel interface for non-agent clients |
+| `client.py` | MCP client (Streamable HTTP, MCP 2026-07-28) |
 | `db.py` | SQLite schema, seed data, and persistence |
+| `config.py` | Environment-driven configuration |
 
-### Agent boundary
+### Agent Boundary
 
-Code under:
+Code under `src/financial_mcp_gateway/agent/` must not import or directly access:
 
-```text
-src/financial_mcp_gateway/agent/
-```
-
-must not import or directly access:
-
-- Domain services
-- `db.py`
-- SQLite
-- Database drivers
+- Domain services (accounts, customers, transactions, users)
+- `db.py` or any SQLite/database driver
 - Financial REST endpoints
+
+Violations break the MCP capability boundary and undermine the purpose of this project.
 
 ---
 
-## Where to Change What
+## Where to Make Changes
 
 | Change | Location |
 |---|---|
-| New financial capability | Domain service → MCP tool |
-| Hard input/output limits | `agent/schema.py` |
-| Reply behavior and examples | `agent/prompts.py` |
-| Tool orchestration | `agent/agent.py` |
-| Gemini integration / wire format | `agent/llm.py` |
-| Tool-call round limit | `AGENT_MAX_TOOL_ROUNDS` |
-| HTTP / Gradio behavior | `chat_app.py` |
-| MCP security rules | `mcp_guard.py`, `MCP_SECURITY.md` |
+| New financial capability | Domain service → MCP tool handler in `mcp/` |
+| Input/output size limits | `agent/schema.py` |
+| Agent reply behavior and examples | `agent/prompts.py` |
+| Tool orchestration and loop logic | `agent/agent.py` |
+| LLM integration and wire format | `agent/llm.py` |
+| Tool-call round limit | `AGENT_MAX_TOOL_ROUNDS` in `.env` or `config.py` |
+| Chat UI and HTTP behavior | `chat_app.py` |
 
-**Business logic belongs in domain services.**
-
-**MCP handlers should remain thin and delegate to domain services.**
-
-**Prompts are not a security boundary.** Security-sensitive restrictions must be enforced in code.
+**Principles:**
+- Business logic belongs in domain services, not in MCP handlers, prompts, or agent code.
+- MCP tool handlers must remain thin — validate inputs, call a domain service, return a typed result.
+- Prompts are behavioral guidance, not security controls. Security-sensitive restrictions must be enforced in code.
 
 ---
 
 ## Adding a Financial Capability
 
-Follow this pattern:
+Follow this pattern without exception:
 
 ```text
-Domain Service
-      ↓
-MCP Tool
-      ↓
-tools/list
-      ↓
-Agent discovers capability
-      ↓
-tools/call
+1. Implement business logic in the domain service
+2. Define a typed MCP tool in mcp/ that delegates to the service
+3. The tool becomes discoverable via tools/list
+4. The agent invokes it via tools/call
 ```
 
-Keep tools:
+Tools must be:
 
-- Narrow
-- Purpose-specific
-- Typed
-- Structured
-- Read-only
+- **Narrow** — one purpose per tool
+- **Typed** — structured Pydantic inputs and outputs
+- **Read-only** — no financial mutations without explicit design review
+- **Honest** — return structured errors rather than masking failures
 
-Do not implement financial business logic in the agent, prompts, or MCP handlers.
-
----
-
-## Do Not
-
-- Bypass MCP from `agent/`.
-- Import domain services from `agent/`.
-- Access `db.py`, SQLite, or database drivers from `agent/`.
-- Call financial REST endpoints directly from `agent/`.
-- Put business logic in prompts, agent code, or MCP handlers.
-- Add write/mutation tools without explicit security design and documentation.
-- Weaken validation or tool-loop limits without justification.
-- Commit secrets.
-- Expose credentials or sensitive configuration in logs or tool output.
+Do not expose generic capabilities such as SQL execution or unrestricted API calls. Each tool should represent a named, intentional financial capability.
 
 ---
 
-## Agent Behavior
+## Agent Behavior Standards
 
 The agent must:
 
-- Use MCP tools for financial facts.
-- Treat tool results as the source of truth.
-- Never invent balances, transactions, customers, or other financial data.
-- Report tool failures honestly.
-- Respect the read-only scope.
-- Stay within `AGENT_MAX_TOOL_ROUNDS`.
+- Use MCP tools as the sole source of financial facts
+- Treat tool results as ground truth — never infer or invent financial data
+- Report tool failures honestly to the user
+- Respect the read-only scope of the current tool catalog
+- Stay within `AGENT_MAX_TOOL_ROUNDS` per request (default: 8)
 
 ---
 
-## Before Submitting Changes
+## Contribution Standards
 
-Run:
+This repository is part of the **AAIF Ambassadors MCP Education Campaign**. Contributions should reflect the quality and clarity expected of a published reference implementation.
+
+Before submitting changes, run the test suite:
 
 ```bash
 uv run pytest
-uv run python mcp_guard.py . --fail-on high
 ```
 
-Then verify:
+Then verify the following:
 
-- [ ] MCP boundary is preserved.
-- [ ] Agent has no direct domain or database access.
-- [ ] New financial capabilities are exposed through MCP.
-- [ ] Tools are narrow, typed, structured, and read-only.
-- [ ] Business logic remains in domain services.
-- [ ] Tests pass.
-- [ ] Security checks pass.
-- [ ] `README.md` or `MCP_SECURITY.md` is updated when architecture or security behavior changes.
-- [ ] No secrets or credentials were introduced.
-
----
-
-## Local Workflow
-
-With Docker Compose (MCP + chat + REST):
-
-```bash
-docker compose up --build
-```
-
-Or run locally:
-
-```bash
-uv run python server.py
-uv run python chat_app.py
-```
-
-Endpoints:
-
-```text
-MCP   → http://127.0.0.1:8000/mcp
-Chat  → http://127.0.0.1:8001/
-```
-
-Agent entry point:
-
-```text
-financial_mcp_gateway.agent.chat
-```
-
-Chat API:
-
-```text
-POST /chat
-```
+- [ ] The MCP capability boundary is preserved — agent has no direct domain or database access
+- [ ] New financial capabilities are exposed through MCP tools, not injected into the agent
+- [ ] MCP tool handlers are thin and delegate to domain services
+- [ ] Tools are narrow, typed, structured, and read-only
+- [ ] Business logic resides in domain services
+- [ ] All tests pass
+- [ ] `README.md` is updated if architecture, endpoints, or tools change
+- [ ] No secrets, credentials, or sensitive configuration are introduced or logged
 
 ---
 
 ## Architectural Rule
 
-When in doubt, preserve this boundary:
+When in doubt, apply this rule:
 
 ```text
 AI Agent
     │
-    │ MCP
+    │  MCP (capability boundary)
     ▼
 Financial Capabilities
     │
     ▼
-Domain Services
+Domain Services  (business logic)
     │
     ▼
 Data
 ```
 
-**The agent reasons. MCP exposes capabilities. Domain services own the business logic.**
+> **The agent reasons. MCP exposes capabilities. Domain services own the business logic.**
+
+This separation is what makes the system trustworthy, testable, and extensible.
