@@ -3,10 +3,7 @@ title: Financial MCP Gateway
 emoji: 🏦
 colorFrom: blue
 colorTo: indigo
-sdk: gradio
-sdk_version: "6.25.0"
-app_file: space_app.py
-python_version: "3.12"
+sdk: docker
 pinned: false
 short_description: Read-only financial agent demo — MCP 2026-07-28 + Gemini
 tags:
